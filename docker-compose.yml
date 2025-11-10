@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: rabobank-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: chatbot
+      MONGO_INITDB_ROOT_PASSWORD: chatbot_password
+      MONGO_INITDB_DATABASE: chatbot_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chatbot-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rabobank-chatbot
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGODB_URI: mongodb://chatbot:chatbot_password@mongodb:27017/chatbot_db?authSource=admin
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    ports:
+      - "3000:3000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - chatbot-network
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  chatbot-network:
+    driver: bridge
