@@ -1,0 +1,52 @@
+{
+  "name": "rabobank-ai-chatbot",
+  "version": "1.0.0",
+  "description": "AI Chatbot Backend for Rabobank Assignment",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit",
+    "docker:build": "docker build -t rabobank-ai-chatbot .",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "build:all": "npm install && npm run typecheck && npm run lint && npm run test && npm run build && npm run docker:build"
+  },
+  "keywords": [
+    "ai",
+    "chatbot",
+    "rabobank",
+    "h3",
+    "typescript"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "h3": "^1.13.0",
+    "ai": "^4.0.0",
+    "openai": "^4.73.0",
+    "mongodb": "^6.10.0",
+    "zod": "^3.23.8",
+    "dotenv": "^16.4.7",
+    "winston": "^3.17.0",
+    "cors": "^2.8.5",
+    "nanoid": "^5.0.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@types/cors": "^2.8.17",
+    "typescript": "^5.7.2",
+    "tsx": "^4.19.2",
+    "vitest": "^2.1.8",
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "eslint": "^9.16.0",
+    "prettier": "^3.4.2"
+  }
+}
