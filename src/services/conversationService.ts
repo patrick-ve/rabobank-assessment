@@ -1,7 +1,7 @@
-import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
+import { createOpenAI } from '@ai-sdk/openai';
 import { SessionRepository } from '../database/repositories/sessionRepository.js';
-import { Message } from '../types/index.js';
+import { Message, ConversationData } from '../types/index.js';
 import { logger } from '../utils/logger.js';
 import { loadPrompt } from '../utils/config.js';
 
@@ -9,9 +9,13 @@ export class ConversationService {
   private sessionRepository: SessionRepository;
   private systemPrompt: string = '';
   private promptVersion: string = '';
+  private openai: ReturnType<typeof createOpenAI>;
 
   constructor() {
     this.sessionRepository = new SessionRepository();
+    this.openai = createOpenAI({
+      apiKey: process.env.OPENAI_API_KEY || '',
+    });
   }
 
   async initialize() {
@@ -28,7 +32,7 @@ export class ConversationService {
     // Generate initial greeting from AI
     try {
       const { text } = await generateText({
-        model: openai('gpt-4o-mini'),
+        model: this.openai('gpt-4o-mini'),
         messages: [
           {
             role: 'system',
@@ -95,7 +99,7 @@ export class ConversationService {
       ];
 
       const { text } = await generateText({
-        model: openai('gpt-4o-mini'),
+        model: this.openai('gpt-4o-mini'),
         messages: aiMessages,
       });
 
@@ -120,7 +124,7 @@ export class ConversationService {
     return await this.sessionRepository.getSession(sessionId);
   }
 
-  async extractConversationData(sessionId: string): Promise<Record<string, any>> {
+  async extractConversationData(sessionId: string): Promise<ConversationData> {
     try {
       const session = await this.sessionRepository.getSession(sessionId);
       if (!session) {
@@ -144,7 +148,7 @@ export class ConversationService {
       `;
 
       const { text } = await generateText({
-        model: openai('gpt-4o-mini'),
+        model: this.openai('gpt-4o-mini'),
         messages: [
           {
             role: 'user',
