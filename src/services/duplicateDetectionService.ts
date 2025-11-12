@@ -1,5 +1,5 @@
 import { RegistrationRepository } from '../database/repositories/registrationRepository.js';
-import { DuplicateDetectionResult } from '../types/index.js';
+import { DuplicateDetectionResult, ConversationData } from '../types/index.js';
 import { logger } from '../utils/logger.js';
 import crypto from 'crypto';
 
@@ -15,7 +15,7 @@ export class DuplicateDetectionService {
    * Uses hashing for sensitive fields and similarity matching
    */
   async detectDuplicate(
-    conversationData: Record<string, any>
+    conversationData: ConversationData
   ): Promise<DuplicateDetectionResult> {
     try {
       // Find similar registrations using PostgreSQL similarity
@@ -73,7 +73,7 @@ export class DuplicateDetectionService {
   /**
    * Hash sensitive fields to enable comparison without exposing PII
    */
-  private hashSensitiveData(data: Record<string, any>): Record<string, string> {
+  private hashSensitiveData(data: ConversationData): Record<string, string> {
     const sensitiveFields = ['name', 'birthdate', 'licenseplate', 'license_plate'];
     const hashed: Record<string, string> = {};
 
