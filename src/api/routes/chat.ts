@@ -19,7 +19,7 @@ const duplicateDetectionService = new DuplicateDetectionService();
 const registrationRepository = new RegistrationRepository();
 const sessionRepository = new SessionRepository();
 
-export async function handleChatStart(event: H3Event): Promise<ChatStartResponse> {
+export async function handleChatStart(_event: H3Event): Promise<ChatStartResponse> {
   try {
     const sessionId = nanoid();
 
@@ -144,7 +144,7 @@ export async function handleGetSession(event: H3Event): Promise<SessionResponse>
   }
 }
 
-export async function handleGetRegistrations(event: H3Event) {
+export async function handleGetRegistrations(_event: H3Event) {
   try {
     const registrations = await registrationRepository.getAllRegistrations();
     return { registrations };
