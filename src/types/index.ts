@@ -29,8 +29,15 @@ export interface Registration {
   promptVersion: string;
   conversationData: ConversationData;
   metadata?: Metadata;
+  embedding?: EmbeddingData;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface EmbeddingData {
+  vector: number[];
+  model: string;
+  createdAt: string;
 }
 
 // ChatStartRequest has no properties, but we use a type alias to avoid empty interface warning
