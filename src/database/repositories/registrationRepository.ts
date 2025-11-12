@@ -1,5 +1,5 @@
 import { getDatabase } from '../db.js';
-import { Registration } from '../../types/index.js';
+import { Registration, ConversationData, Metadata } from '../../types/index.js';
 import { logger } from '../../utils/logger.js';
 import { ObjectId } from 'mongodb';
 
@@ -11,8 +11,8 @@ export class RegistrationRepository {
   async createRegistration(
     sessionId: string,
     promptVersion: string,
-    conversationData: Record<string, any>,
-    metadata?: Record<string, any>
+    conversationData: ConversationData,
+    metadata?: Metadata
   ): Promise<Registration> {
     try {
       const now = new Date();
@@ -44,8 +44,8 @@ export class RegistrationRepository {
   }
 
   async findSimilarRegistrations(
-    conversationData: Record<string, any>,
-    threshold: number = 0.3
+    conversationData: ConversationData,
+    _threshold: number = 0.3
   ): Promise<Registration[]> {
     try {
       // Use MongoDB's text search for finding similar documents
@@ -71,10 +71,10 @@ export class RegistrationRepository {
       }
 
       // Fallback: field-by-field comparison
-      const conditions: any[] = [];
+      const conditions: Array<Record<string, unknown>> = [];
 
       // Check for specific fields that might indicate duplicates
-      if (conversationData.name) {
+      if (conversationData.name && typeof conversationData.name === 'string') {
         conditions.push({
           'conversationData.name': { $regex: new RegExp(conversationData.name, 'i') },
         });
@@ -82,12 +82,14 @@ export class RegistrationRepository {
 
       if (conversationData.licenseplate || conversationData.license_plate) {
         const licensePlate = conversationData.licenseplate || conversationData.license_plate;
-        conditions.push({
-          $or: [
-            { 'conversationData.licenseplate': { $regex: new RegExp(licensePlate, 'i') } },
-            { 'conversationData.license_plate': { $regex: new RegExp(licensePlate, 'i') } },
-          ],
-        });
+        if (typeof licensePlate === 'string') {
+          conditions.push({
+            $or: [
+              { 'conversationData.licenseplate': { $regex: new RegExp(licensePlate, 'i') } },
+              { 'conversationData.license_plate': { $regex: new RegExp(licensePlate, 'i') } },
+            ],
+          });
+        }
       }
 
       if (conversationData.birthdate) {
@@ -114,8 +116,8 @@ export class RegistrationRepository {
 
   async updateRegistration(
     id: string,
-    conversationData: Record<string, any>,
-    metadata?: Record<string, any>
+    conversationData: ConversationData,
+    metadata?: Metadata
   ): Promise<Registration> {
     try {
       const result = await this.getCollection().findOneAndUpdate(
@@ -158,8 +160,8 @@ interface RegistrationDocument {
   _id?: ObjectId;
   sessionId: string;
   promptVersion: string;
-  conversationData: Record<string, any>;
-  metadata?: Record<string, any>;
+  conversationData: ConversationData;
+  metadata?: Metadata;
   createdAt: Date;
   updatedAt: Date;
 }
