@@ -1,9 +1,16 @@
 import { getDatabase } from '../db.js';
-import { Registration, ConversationData, Metadata } from '../../types/index.js';
+import { Registration, ConversationData, Metadata, EmbeddingData } from '../../types/index.js';
 import { logger } from '../../utils/logger.js';
 import { ObjectId } from 'mongodb';
+import { EmbeddingService } from '../../services/embeddingService.js';
 
 export class RegistrationRepository {
+  private embeddingService: EmbeddingService;
+
+  constructor() {
+    this.embeddingService = new EmbeddingService();
+  }
+
   private getCollection() {
     return getDatabase().collection<RegistrationDocument>('registrations');
   }
@@ -15,12 +22,16 @@ export class RegistrationRepository {
     metadata?: Metadata
   ): Promise<Registration> {
     try {
+      // Generate embedding for the registration data
+      const embedding = await this.embeddingService.generateEmbedding(conversationData);
+
       const now = new Date();
       const doc: RegistrationDocument = {
         sessionId,
         promptVersion,
         conversationData,
         metadata,
+        embedding,
         createdAt: now,
         updatedAt: now,
       };
@@ -114,18 +125,55 @@ export class RegistrationRepository {
     }
   }
 
+  async getAllRegistrationsWithEmbeddings(): Promise<Registration[]> {
+    try {
+      const docs = await this.getCollection()
+        .find({ 'embedding.vector': { $exists: true } })
+        .sort({ createdAt: -1 })
+        .toArray();
+      return docs.map((doc) => this.mapToRegistration(doc));
+    } catch (error) {
+      logger.error('Error getting registrations with embeddings', { error });
+      throw new Error('Failed to get registrations with embeddings');
+    }
+  }
+
+  async findByLicensePlate(licensePlate: string): Promise<Registration[]> {
+    try {
+      const normalizedPlate = licensePlate.toUpperCase().replace(/\s+/g, '');
+
+      const docs = await this.getCollection()
+        .find({
+          $or: [
+            { 'conversationData.licensePlate': { $regex: new RegExp(`^${normalizedPlate}$`, 'i') } },
+            { 'conversationData.license_plate': { $regex: new RegExp(`^${normalizedPlate}$`, 'i') } },
+          ],
+        })
+        .toArray();
+
+      return docs.map((doc) => this.mapToRegistration(doc));
+    } catch (error) {
+      logger.error('Error finding registration by license plate', { error, licensePlate });
+      throw new Error('Failed to find registration by license plate');
+    }
+  }
+
   async updateRegistration(
     id: string,
     conversationData: ConversationData,
     metadata?: Metadata
   ): Promise<Registration> {
     try {
+      // Generate new embedding for updated data
+      const embedding = await this.embeddingService.generateEmbedding(conversationData);
+
       const result = await this.getCollection().findOneAndUpdate(
         { _id: new ObjectId(id) },
         {
           $set: {
             conversationData,
             metadata,
+            embedding,
             updatedAt: new Date(),
           },
         },
@@ -150,6 +198,7 @@ export class RegistrationRepository {
       promptVersion: doc.promptVersion,
       conversationData: doc.conversationData,
       metadata: doc.metadata,
+      embedding: doc.embedding,
       createdAt: doc.createdAt.toISOString(),
       updatedAt: doc.updatedAt.toISOString(),
     };
@@ -162,6 +211,7 @@ interface RegistrationDocument {
   promptVersion: string;
   conversationData: ConversationData;
   metadata?: Metadata;
+  embedding?: EmbeddingData;
   createdAt: Date;
   updatedAt: Date;
 }
