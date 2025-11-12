@@ -79,7 +79,7 @@ export class SessionRepository {
 
   private mapToSession(doc: SessionDocument): Session {
     return {
-      id: doc._id.toString(),
+      id: doc._id!.toString(),
       sessionId: doc.sessionId,
       promptVersion: doc.promptVersion,
       messages: doc.messages,
