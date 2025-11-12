@@ -1,9 +1,10 @@
-import { generateText } from 'ai';
+import { generateText, generateObject } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { SessionRepository } from '../database/repositories/sessionRepository.js';
 import { Message, ConversationData } from '../types/index.js';
 import { logger } from '../utils/logger.js';
 import { loadPrompt } from '../utils/config.js';
+import { RegistrationDataSchema } from '../schemas/registrationSchema.js';
 
 export class ConversationService {
   private sessionRepository: SessionRepository;
@@ -32,7 +33,7 @@ export class ConversationService {
     // Generate initial greeting from AI
     try {
       const { text } = await generateText({
-        model: this.openai('gpt-4o-mini'),
+        model: this.openai('gpt-5'),
         messages: [
           {
             role: 'system',
@@ -99,7 +100,7 @@ export class ConversationService {
       ];
 
       const { text } = await generateText({
-        model: this.openai('gpt-4o-mini'),
+        model: this.openai('gpt-5'),
         messages: aiMessages,
       });
 
@@ -137,36 +138,28 @@ export class ConversationService {
         .join('\n');
 
       const extractionPrompt = `
-        Based on the following conversation, extract all the information that was collected.
-        Return ONLY a valid JSON object with the extracted fields.
+        Based on the following conversation, extract all the registration information that was collected.
 
         Conversation:
         ${conversationText}
 
-        Extract fields like: car type, manufacturer, year, license plate, customer name, birthdate, etc.
-        Return only JSON, no other text.
+        Extract the car information (type, manufacturer, year, license plate) and customer information (name, birthdate).
       `;
 
-      const { text } = await generateText({
-        model: this.openai('gpt-4o-mini'),
-        messages: [
-          {
-            role: 'user',
-            content: extractionPrompt,
-          },
-        ],
+      // Use generateObject with Zod schema for structured extraction
+      const { object: extractedData } = await generateObject({
+        model: this.openai('gpt-5'),
+        schema: RegistrationDataSchema,
+        prompt: extractionPrompt,
       });
 
-      // Parse the JSON response
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const extractedData = JSON.parse(jsonMatch[0]);
-        logger.info('Extracted conversation data', { sessionId, data: extractedData });
-        return extractedData;
-      }
+      logger.info('Extracted structured conversation data', {
+        sessionId,
+        data: extractedData
+      });
 
-      logger.warn('Could not extract structured data from conversation', { sessionId });
-      return {};
+      // Convert to ConversationData format for backward compatibility
+      return extractedData as ConversationData;
     } catch (error) {
       logger.error('Error extracting conversation data', { error, sessionId });
       throw new Error('Failed to extract conversation data');
