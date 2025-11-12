@@ -1,127 +1,114 @@
 import { RegistrationRepository } from '../database/repositories/registrationRepository.js';
 import { DuplicateDetectionResult, ConversationData } from '../types/index.js';
 import { logger } from '../utils/logger.js';
-import crypto from 'crypto';
+import { EmbeddingService } from './embeddingService.js';
 
 export class DuplicateDetectionService {
   private registrationRepository: RegistrationRepository;
+  private embeddingService: EmbeddingService;
+  private similarityThreshold = 0.85; // 85% similarity threshold
 
   constructor() {
     this.registrationRepository = new RegistrationRepository();
+    this.embeddingService = new EmbeddingService();
   }
 
   /**
-   * Detect duplicates without exposing PII
-   * Uses hashing for sensitive fields and similarity matching
+   * Detect duplicates using AI embeddings for semantic similarity
    */
   async detectDuplicate(
     conversationData: ConversationData
   ): Promise<DuplicateDetectionResult> {
     try {
-      // Find similar registrations using PostgreSQL similarity
-      const similarRegistrations =
-        await this.registrationRepository.findSimilarRegistrations(conversationData, 0.4);
+      // Generate embedding for the new registration data
+      const newEmbedding = await this.embeddingService.generateEmbedding(conversationData);
 
-      if (similarRegistrations.length === 0) {
+      // Get all existing registrations with embeddings
+      const existingRegistrations = await this.registrationRepository.getAllRegistrationsWithEmbeddings();
+
+      if (existingRegistrations.length === 0) {
         return {
           isDuplicate: false,
           requiresConfirmation: false,
         };
       }
 
-      // Check for exact matches using hashed PII
-      const hashedData = this.hashSensitiveData(conversationData);
+      // Prepare candidate embeddings for comparison
+      const candidateEmbeddings = existingRegistrations
+        .filter((reg) => reg.embedding?.vector)
+        .map((reg) => ({
+          id: reg.id,
+          vector: reg.embedding!.vector,
+          data: reg.conversationData,
+        }));
 
-      for (const registration of similarRegistrations) {
-        const existingHashedData = this.hashSensitiveData(registration.conversationData);
+      // Find similar registrations based on embedding similarity
+      const similarRegistrations = this.embeddingService.findSimilarEmbeddings(
+        newEmbedding.vector,
+        candidateEmbeddings.map((c) => ({ id: c.id, vector: c.vector })),
+        this.similarityThreshold
+      );
 
-        // Compare hashes to detect duplicates without exposing PII
-        const matchScore = this.calculateHashMatchScore(hashedData, existingHashedData);
+      if (similarRegistrations.length === 0) {
+        // Also check for exact license plate matches as a safety net
+        const licensePlate = conversationData.licensePlate || conversationData.license_plate;
+        if (licensePlate) {
+          const exactMatches = await this.registrationRepository.findByLicensePlate(
+            String(licensePlate)
+          );
 
-        if (matchScore > 0.7) {
-          logger.info('Duplicate detected', {
-            existingId: registration.id,
-            matchScore,
-          });
+          if (exactMatches.length > 0) {
+            logger.info('Exact license plate match found', {
+              existingId: exactMatches[0].id,
+            });
 
-          return {
-            isDuplicate: true,
-            similarityScore: matchScore,
-            existingRegistrationId: registration.id,
-            requiresConfirmation: true,
-          };
+            return {
+              isDuplicate: true,
+              similarityScore: 1.0,
+              existingRegistrationId: exactMatches[0].id,
+              requiresConfirmation: true,
+            };
+          }
         }
+
+        return {
+          isDuplicate: false,
+          requiresConfirmation: false,
+        };
       }
 
-      // Similar but not exact duplicate
-      if (similarRegistrations.length > 0) {
-        logger.info('Similar registration found', {
-          count: similarRegistrations.length,
-        });
+      // Get the most similar registration
+      const mostSimilar = similarRegistrations[0];
+      const existingData = candidateEmbeddings.find((c) => c.id === mostSimilar.id)?.data;
+
+      // Generate explanation for the similarity
+      let explanation = '';
+      if (existingData) {
+        explanation = await this.embeddingService.generateSimilarityExplanation(
+          conversationData,
+          existingData,
+          mostSimilar.similarity
+        );
       }
+
+      logger.info('AI-based duplicate detected', {
+        existingId: mostSimilar.id,
+        similarity: mostSimilar.similarity,
+        explanation,
+      });
 
       return {
-        isDuplicate: false,
-        requiresConfirmation: false,
+        isDuplicate: true,
+        similarityScore: mostSimilar.similarity,
+        existingRegistrationId: mostSimilar.id,
+        requiresConfirmation: true,
       };
     } catch (error) {
-      logger.error('Error detecting duplicates', { error });
+      logger.error('Error detecting duplicates with AI', { error });
       throw new Error('Failed to detect duplicates');
     }
   }
 
-  /**
-   * Hash sensitive fields to enable comparison without exposing PII
-   */
-  private hashSensitiveData(data: ConversationData): Record<string, string> {
-    const sensitiveFields = ['name', 'birthdate', 'licenseplate', 'license_plate'];
-    const hashed: Record<string, string> = {};
-
-    for (const [key, value] of Object.entries(data)) {
-      const normalizedKey = key.toLowerCase().replace(/[_\s-]/g, '');
-
-      if (sensitiveFields.some((field) => normalizedKey.includes(field))) {
-        // Hash the value
-        const normalizedValue = String(value).toLowerCase().trim();
-        hashed[normalizedKey] = crypto
-          .createHash('sha256')
-          .update(normalizedValue)
-          .digest('hex');
-      }
-    }
-
-    return hashed;
-  }
-
-  /**
-   * Calculate match score between two sets of hashed data
-   */
-  private calculateHashMatchScore(
-    hash1: Record<string, string>,
-    hash2: Record<string, string>
-  ): number {
-    const keys1 = Object.keys(hash1);
-    const keys2 = Object.keys(hash2);
-
-    if (keys1.length === 0 || keys2.length === 0) {
-      return 0;
-    }
-
-    let matches = 0;
-    let total = 0;
-
-    // Compare common keys
-    for (const key of keys1) {
-      if (hash2[key]) {
-        total++;
-        if (hash1[key] === hash2[key]) {
-          matches++;
-        }
-      }
-    }
-
-    return total > 0 ? matches / total : 0;
-  }
 
   /**
    * Generate confirmation message without exposing PII
