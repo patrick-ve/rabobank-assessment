@@ -1,13 +1,8 @@
 import { z } from 'zod';
+import { CAR_TYPES } from '../config/prompt.js';
 
 // Define the car type enum based on the prompt requirements
-export const CarType = z.enum([
-  'Sedan',
-  'Coupe',
-  'Station Wagon',
-  'Hatchback',
-  'Minivan',
-]);
+export const CarType = z.enum(CAR_TYPES);
 
 // Main registration schema for structured data extraction
 export const RegistrationDataSchema = z.object({

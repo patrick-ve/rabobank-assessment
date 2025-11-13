@@ -1,33 +1,16 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { logger } from './logger.js';
+import { SYSTEM_PROMPT } from '../config/prompt.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-let cachedPrompt: string | null = null;
 let promptVersion: string | null = null;
 
 export async function loadPrompt(): Promise<{ prompt: string; version: string }> {
-  if (cachedPrompt && promptVersion) {
-    return { prompt: cachedPrompt, version: promptVersion };
+  // Generate version based on current timestamp if not already set
+  if (!promptVersion) {
+    promptVersion = `v${Date.now()}`;
   }
 
-  try {
-    const promptPath = path.join(__dirname, '../../config/prompt.txt');
-    cachedPrompt = await fs.readFile(promptPath, 'utf-8');
-
-    // Generate version based on content hash (simple approach)
-    const stats = await fs.stat(promptPath);
-    promptVersion = `v${stats.mtime.getTime()}`;
-
-    logger.info('Prompt loaded successfully', { version: promptVersion });
-    return { prompt: cachedPrompt, version: promptVersion };
-  } catch (error) {
-    logger.error('Error loading prompt', { error });
-    throw new Error('Failed to load prompt configuration');
-  }
+  logger.info('Prompt loaded successfully', { version: promptVersion });
+  return { prompt: SYSTEM_PROMPT, version: promptVersion };
 }
 
 export function getConfig() {
