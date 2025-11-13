@@ -91,6 +91,7 @@ docker-compose up
 The application will be available at `http://localhost:3000`
 
 #### Health Check
+
 ```bash
 curl http://localhost:3000/health
 ```
@@ -98,11 +99,13 @@ curl http://localhost:3000/health
 #### Complete Conversation Flow
 
 **1. Start a new chat session:**
+
 ```bash
 curl -X POST http://localhost:3000/api/chat/start
 ```
 
 Response:
+
 ```json
 {
   "sessionId": "abc123...",
@@ -111,6 +114,7 @@ Response:
 ```
 
 **2. Send messages:**
+
 ```bash
 curl -X POST http://localhost:3000/api/chat/message \
   -H "Content-Type: application/json" \
@@ -123,6 +127,7 @@ curl -X POST http://localhost:3000/api/chat/message \
 **3. Continue the conversation until all information is collected**
 
 **4. Complete the registration:**
+
 ```bash
 curl -X POST http://localhost:3000/api/chat/complete \
   -H "Content-Type: application/json" \
@@ -132,6 +137,7 @@ curl -X POST http://localhost:3000/api/chat/complete \
 ```
 
 **5. View all registrations:**
+
 ```bash
 curl http://localhost:3000/api/registrations
 ```
@@ -140,19 +146,21 @@ curl http://localhost:3000/api/registrations
 
 ### Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
-| POST | `/api/chat/start` | Start new conversation |
-| POST | `/api/chat/message` | Send message in conversation |
-| POST | `/api/chat/complete` | Complete and save registration |
-| GET | `/api/chat/session/:id` | Get session details |
-| GET | `/api/registrations` | List all registrations |
+| Method | Endpoint                | Description                    |
+| ------ | ----------------------- | ------------------------------ |
+| GET    | `/health`               | Health check                   |
+| POST   | `/api/chat/start`       | Start new conversation         |
+| POST   | `/api/chat/message`     | Send message in conversation   |
+| POST   | `/api/chat/complete`    | Complete and save registration |
+| GET    | `/api/chat/session/:id` | Get session details            |
+| GET    | `/api/registrations`    | List all registrations         |
 
 ### Request/Response Examples
 
 #### POST /api/chat/message
+
 Request:
+
 ```json
 {
   "sessionId": "abc123",
@@ -161,6 +169,7 @@ Request:
 ```
 
 Response:
+
 ```json
 {
   "sessionId": "abc123",
@@ -169,7 +178,9 @@ Response:
 ```
 
 #### POST /api/chat/complete
+
 Request:
+
 ```json
 {
   "sessionId": "abc123"
@@ -177,6 +188,7 @@ Request:
 ```
 
 Response (Success):
+
 ```json
 {
   "success": true,
@@ -187,6 +199,7 @@ Response (Success):
 ```
 
 Response (Duplicate Detected):
+
 ```json
 {
   "success": false,
@@ -207,19 +220,20 @@ You are an AI Assistant, that works at registration office...
 ```
 
 The system automatically:
+
 - Loads the prompt at startup
 - Tracks prompt versions
 - Preserves historical data across prompt changes
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | `3000` |
-| `MONGODB_URI` | MongoDB connection string | See .env.example |
-| `OPENAI_API_KEY` | OpenAI API key (GPT-5 access required) | Required |
-| `NODE_ENV` | Environment | `development` |
-| `LOG_LEVEL` | Logging level | `info` |
+| Variable         | Description                            | Default          |
+| ---------------- | -------------------------------------- | ---------------- |
+| `PORT`           | Server port                            | `3000`           |
+| `MONGODB_URI`    | MongoDB connection string              | See .env.example |
+| `OPENAI_API_KEY` | OpenAI API key (GPT-5 access required) | Required         |
+| `NODE_ENV`       | Environment                            | `development`    |
+| `LOG_LEVEL`      | Logging level                          | `info`           |
 
 ## Development
 
@@ -257,6 +271,7 @@ The application uses MongoDB with flexible document collections:
 ### Collections
 
 **sessions**: Tracks active conversations
+
 - `_id`: ObjectId primary key
 - `sessionId`: Unique session identifier
 - `promptVersion`: Version of prompt used
@@ -265,6 +280,7 @@ The application uses MongoDB with flexible document collections:
 - `createdAt`, `updatedAt`, `completedAt`: Timestamps
 
 **registrations**: Stores completed registrations
+
 - `_id`: ObjectId primary key
 - `sessionId`: Reference to session
 - `promptVersion`: Version of prompt used
@@ -279,6 +295,7 @@ The application uses MongoDB with flexible document collections:
 ### Duplicate Detection
 
 The system uses AI-based semantic similarity detection:
+
 - **OpenAI Embeddings**: Generates vector representations using text-embedding-3-small
 - **Cosine Similarity**: Calculates similarity between embedding vectors
 - **85% Threshold**: Configurable similarity threshold for duplicate detection
@@ -370,6 +387,7 @@ Tests use Vitest and can run against a test database.
 ### Prompt Versioning
 
 Each registration stores the prompt version used, allowing:
+
 - Historical data preservation
 - Prompt evolution tracking
 - Data migration if needed
@@ -437,24 +455,3 @@ sleep 5
 # Run tests
 npm test
 ```
-
-## Future Improvements
-
-- [ ] Add authentication/authorization
-- [ ] Implement rate limiting
-- [ ] Add conversation timeout handling
-- [ ] Support multiple LLM providers
-- [ ] Add conversation export functionality
-- [ ] Implement soft deletes for GDPR compliance
-- [ ] Add GraphQL API option
-- [ ] Implement caching layer (Redis)
-- [ ] Add metrics and monitoring (Prometheus)
-- [ ] Support multi-language prompts
-
-## License
-
-This project is part of the Rabobank programming assignment.
-
-## Support
-
-For questions or issues related to the assignment, please contact the Rabobank recruitment team.
