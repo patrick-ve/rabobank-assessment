@@ -4,9 +4,14 @@ An AI-powered chatbot backend for car insurance registration with duplicate dete
 
 ## Features
 
-- **AI-Powered Conversations**: Uses Vercel AI SDK with OpenAI for natural language interactions
+- **AI-Powered Conversations**: Uses Vercel AI SDK with GPT-5 for natural language interactions
+- **Structured Data Extraction**: Zod schema validation with `generateObject` for guaranteed type-safe extraction
+- **AI-Based Duplicate Detection**: Semantic similarity using OpenAI embeddings instead of simple hash comparison
+  - 85% similarity threshold for intelligent duplicate detection
+  - Cosine similarity calculation between embedding vectors
+  - Fallback to exact license plate matching for safety
+  - Human-readable explanations of why duplicates were detected
 - **Dynamic Prompt System**: Loads prompts from configuration files, allowing flexible conversation flows
-- **Duplicate Detection**: Privacy-preserving duplicate detection using MongoDB text search and hash comparison
 - **Flexible Schema**: MongoDB's document model supports changing prompts without schema migrations
 - **REST API**: Clean H3-based API for easy integration
 - **Docker Support**: Full containerization with Docker Compose
@@ -16,7 +21,8 @@ An AI-powered chatbot backend for car insurance registration with duplicate dete
 - **Runtime**: Node.js 24.11.0 LTS
 - **Language**: TypeScript (strict mode)
 - **Framework**: H3 Web Framework
-- **AI SDK**: Vercel AI SDK with OpenAI
+- **AI SDK**: Vercel AI SDK with OpenAI GPT-5 and text-embedding-3-small
+- **Validation**: Zod for schema validation and type inference
 - **Database**: MongoDB 7
 - **Testing**: Vitest
 - **Containerization**: Docker & Docker Compose
@@ -32,9 +38,12 @@ An AI-powered chatbot backend for car insurance registration with duplicate dete
 │   ├── database/
 │   │   ├── db.ts            # Database connection
 │   │   └── repositories/    # Data access layer
+│   ├── schemas/             # Zod schemas
+│   │   └── registrationSchema.ts
 │   ├── services/            # Business logic
 │   │   ├── conversationService.ts
-│   │   └── duplicateDetectionService.ts
+│   │   ├── duplicateDetectionService.ts
+│   │   └── embeddingService.ts
 │   ├── types/               # TypeScript type definitions
 │   ├── utils/               # Utilities (logger, config)
 │   └── index.ts             # Application entry point
@@ -208,7 +217,7 @@ The system automatically:
 |----------|-------------|---------|
 | `PORT` | Server port | `3000` |
 | `MONGODB_URI` | MongoDB connection string | See .env.example |
-| `OPENAI_API_KEY` | OpenAI API key | Required |
+| `OPENAI_API_KEY` | OpenAI API key (GPT-5 access required) | Required |
 | `NODE_ENV` | Environment | `development` |
 | `LOG_LEVEL` | Logging level | `info` |
 
@@ -259,17 +268,24 @@ The application uses MongoDB with flexible document collections:
 - `_id`: ObjectId primary key
 - `sessionId`: Reference to session
 - `promptVersion`: Version of prompt used
-- `conversationData`: Document with extracted registration data
+- `conversationData`: Document with extracted registration data (validated with Zod)
 - `metadata`: Document with additional metadata
+- `embedding`: AI-generated embedding vector for similarity detection
+  - `vector`: Array of numbers from text-embedding-3-small model
+  - `model`: Model used for embedding generation
+  - `createdAt`: Embedding generation timestamp
 - `createdAt`, `updatedAt`: Timestamps
 
 ### Duplicate Detection
 
-The system uses:
-- MongoDB text search indexes for similarity matching
-- SHA-256 hashing for PII comparison without exposure
-- Field-specific regex matching for license plates
-- Configurable similarity thresholds
+The system uses AI-based semantic similarity detection:
+- **OpenAI Embeddings**: Generates vector representations using text-embedding-3-small
+- **Cosine Similarity**: Calculates similarity between embedding vectors
+- **85% Threshold**: Configurable similarity threshold for duplicate detection
+- **Smart Matching**: Recognizes semantic equivalents (e.g., "John Doe" ≈ "J. Doe")
+- **License Plate Fallback**: Exact matching for critical fields
+- **Privacy-Preserving**: No PII exposed in similarity calculations
+- **Explainable Results**: Provides human-readable explanations of why duplicates were detected
 
 ## Docker
 
@@ -327,12 +343,29 @@ Tests use Vitest and can run against a test database.
 - **Type-safe**: Excellent TypeScript support
 - **Fast**: High performance routing
 
+### Why Zod for Data Extraction?
+
+- **Type Safety**: Schema validation at runtime with TypeScript inference
+- **Structured Output**: Works with Vercel AI SDK's `generateObject` for guaranteed structure
+- **No Regex Parsing**: Eliminates fragile JSON extraction from AI responses
+- **Validation**: Automatic validation of dates, enums, and field constraints
+
+### Why AI-Based Duplicate Detection?
+
+- **Semantic Understanding**: Detects duplicates even with variations (e.g., "John Doe" ≈ "J. Doe")
+- **Better Accuracy**: 85% similarity threshold vs binary hash matching
+- **Flexibility**: Handles typos, abbreviations, and format variations
+- **Explainability**: Can provide reasons why something is considered a duplicate
+
 ### Duplicate Detection Approach
 
-1. **Hash sensitive fields** (name, birthdate, license plate)
-2. **Use MongoDB text search and regex** for fuzzy matching
-3. **Never expose PII** in comparison results
-4. **Require user confirmation** before updates
+1. **Generate embeddings** for each registration using OpenAI's text-embedding-3-small
+2. **Calculate cosine similarity** between embedding vectors
+3. **Apply 85% threshold** to identify potential duplicates
+4. **Fallback to exact matching** for critical fields like license plates
+5. **Generate explanations** about what fields matched
+6. **Never expose PII** in comparison results
+7. **Require user confirmation** before updates
 
 ### Prompt Versioning
 
