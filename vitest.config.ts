@@ -23,5 +23,11 @@ export default defineConfig({
     hookTimeout: 30000,
     maxConcurrency: 5,
     pool: 'forks', // Use forks for better isolation between tests
+    poolOptions: {
+      forks: {
+        singleFork: false, // Allow multiple forks for concurrent tests
+        isolate: true, // Ensure tests are isolated
+      },
+    },
   },
 });
