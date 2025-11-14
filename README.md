@@ -2,6 +2,17 @@
 
 An AI-powered chatbot backend for car insurance registration with duplicate detection capabilities.
 
+## Assignment Deliverables
+
+This project meets all assignment requirements:
+
+✅ **Code Repository** - Complete implementation with clean architecture
+✅ **Build Script** - `build.sh` handles dependency installation, building, testing, and Docker packaging
+✅ **Dockerfile** - Multi-stage build integrated into build script
+✅ **Docker Compose** - Complete infrastructure setup (MongoDB + App)
+✅ **E2E Testing** - Comprehensive test suite executed during build
+✅ **Documentation** - Markdown-based documentation for build and run instructions
+
 ## Features
 
 - **AI-Powered Conversations**: Uses Vercel AI SDK with GPT-5 for natural language interactions
@@ -76,11 +87,31 @@ OPENAI_API_KEY=your_key_here
 
 ### 2. Build and Run
 
-```bash
-# Option A: Use the build script (recommended)
-./build.sh
+#### Automated Build Process (Recommended)
 
-# Option B: Manual build
+The `build.sh` script handles the complete build pipeline as required by the assignment:
+
+```bash
+./build.sh
+```
+
+This script performs the following steps in sequence:
+1. **Dependency Installation** - Installs all npm packages
+2. **Type Checking** - Validates TypeScript types across the codebase
+3. **Linting** - Ensures code quality and consistency
+4. **Building** - Compiles TypeScript to JavaScript
+5. **Testing** - Runs end-to-end tests with concurrent execution
+6. **Packaging** - Creates an executable Docker image
+
+After successful build, run the application:
+
+```bash
+docker-compose up
+```
+
+#### Manual Build (Alternative)
+
+```bash
 npm install
 npm run build
 docker-compose up
@@ -345,19 +376,34 @@ docker-compose down
 
 ### Docker Compose Services
 
+The `docker-compose.yml` file handles the complete infrastructure setup as per assignment requirements:
+
 - **mongodb**: MongoDB database with persistent storage
-- **app**: Node.js application container
+  - Automated initialization via `mongo-init.js`
+  - Creates database, user, and collections
+  - Persistent volume for data preservation
+- **app**: Node.js application container (executable Docker image)
+  - Web server with REST API interfaces
+  - Data extraction and processing services
+  - AI chatbot functionality
+  - Environment-based configuration
 
 ## Testing Strategy
 
-The project includes comprehensive E2E tests:
+The project includes comprehensive E2E tests that are automatically executed during the build process:
 
-- Complete conversation flow
-- Data extraction and storage
-- Session management
-- Registration retrieval
+- Complete conversation flow with AI
+- Data extraction and storage with Zod validation
+- Session management across multiple conversations
+- Registration retrieval and duplicate detection
+- AI-based semantic similarity matching
 
-Tests use Vitest and can run against a test database.
+**Build Integration**: The `build.sh` script automatically runs tests:
+- Uses `npm run test:concurrent` for faster execution (5 tests in parallel)
+- Gracefully handles missing database connections
+- Provides clear success/failure feedback
+
+Tests use Vitest and run against a dedicated test database (`chatbot_test_db`).
 
 ## Design Decisions
 
@@ -421,7 +467,7 @@ Each registration stores the prompt version used, allowing:
 2. Push image to registry (optional)
 3. Deploy with docker-compose or Kubernetes
 4. Set environment variables
-5. Run database migrations (automatic via init.sql)
+5. Run database migrations (automatic via mongo-init.js)
 
 ### Environment Setup
 
@@ -664,11 +710,11 @@ flowchart LR
 
 #### Test Modes
 
-| Mode             | Command                | Description               | Execution Time |
-| ---------------- | ---------------------- | ------------------------- | -------------- |
-| **Full Suite**   | `npm test`             | All tests, verbose output | 3-5 minutes    |
-| **Fast Mode**    | `npm run test:fast`    | All tests, 5 concurrent   | 2-3 minutes    |
-| **Limited Mode** | `npm run test:limited` | 5 core tests for CI/CD    | 60 seconds     |
+| Mode             | Command                   | Description               | Execution Time |
+| ---------------- | ------------------------- | ------------------------- | -------------- |
+| **Full Suite**   | `npm test`                | All tests, verbose output | 3-5 minutes    |
+| **Fast Mode**    | `npm run test:concurrent` | All tests, 5 concurrent   | 2-3 minutes    |
+| **Limited Mode** | `npm run test:limited`    | 5 core tests for CI/CD    | 60 seconds     |
 
 #### Test Coverage Matrix
 
@@ -704,7 +750,7 @@ flowchart LR
   - Limited test suite for faster CI/CD builds
 
 - **New Test Scripts**:
-  - `test:fast` - All tests with 5 concurrent execution
+  - `test:concurrent` - All tests with 5 concurrent execution
   - `test:limited` - 5 core tests for CI pipelines
   - Dedicated test database to avoid conflicts
 
