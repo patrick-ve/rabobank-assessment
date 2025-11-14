@@ -8,8 +8,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "vitest run",
+    "test": "vitest run --reporter=verbose",
     "test:watch": "vitest",
+    "test:fast": "./scripts/test-e2e-fast.sh",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
@@ -21,11 +22,10 @@
   "keywords": [
     "ai",
     "chatbot",
-    "rabobank",
     "h3",
     "typescript"
   ],
-  "author": "",
+  "author": "Patrick van Everdingen",
   "license": "ISC",
   "dependencies": {
     "h3": "^1.13.0",
