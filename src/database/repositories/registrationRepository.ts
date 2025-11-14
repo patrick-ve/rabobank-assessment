@@ -21,10 +21,28 @@ export class RegistrationRepository {
     conversationData: ConversationData,
     metadata?: Metadata
   ): Promise<Registration> {
-    try {
-      // Generate embedding for the registration data
-      const embedding = await this.embeddingService.generateEmbedding(conversationData);
+    let embedding: EmbeddingData | undefined;
 
+    try {
+      // Try to generate embedding for the registration data
+      embedding = await this.embeddingService.generateEmbedding(conversationData);
+      logger.info('Successfully generated embedding for registration', {
+        sessionId,
+        hasEmbedding: !!embedding,
+        vectorLength: embedding?.vector?.length
+      });
+    } catch (embeddingError) {
+      // Log the error but don't fail the registration
+      logger.warn('Failed to generate embedding, continuing without it', {
+        error: embeddingError instanceof Error ? embeddingError.message : embeddingError,
+        sessionId,
+        conversationData: JSON.stringify(conversationData)
+      });
+      // Continue without embedding - registration is still valid
+      embedding = undefined;
+    }
+
+    try {
       const now = new Date();
       const doc: RegistrationDocument = {
         sessionId,
@@ -37,6 +55,12 @@ export class RegistrationRepository {
       };
 
       const result = await this.getCollection().insertOne(doc);
+      logger.info('Registration created successfully', {
+        sessionId,
+        registrationId: result.insertedId.toString(),
+        hasEmbedding: !!embedding
+      });
+
       return this.mapToRegistration({ ...doc, _id: result.insertedId });
     } catch (error) {
       logger.error('Error creating registration', { error, sessionId });

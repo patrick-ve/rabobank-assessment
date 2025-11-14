@@ -5,7 +5,7 @@ import { EmbeddingData } from '../types/index.js';
 
 export class EmbeddingService {
   private openai: ReturnType<typeof createOpenAI>;
-  private embeddingModel = 'text-embedding-3-small';
+  private embeddingModel = process.env.TEST_EMBEDDING_MODEL || 'text-embedding-3-small';
 
   constructor() {
     this.openai = createOpenAI({
@@ -21,10 +21,21 @@ export class EmbeddingService {
       // Create a normalized string representation of the data
       const text = this.normalizeDataForEmbedding(data);
 
+      logger.info('Generating embedding for text', {
+        text,
+        dataKeys: Object.keys(data),
+        hasApiKey: !!process.env.OPENAI_API_KEY
+      });
+
       // Generate embedding using OpenAI
       const { embedding } = await embed({
         model: this.openai.embedding(this.embeddingModel),
         value: text,
+      });
+
+      logger.info('Successfully generated embedding', {
+        vectorLength: embedding.length,
+        model: this.embeddingModel
       });
 
       return {
@@ -33,8 +44,16 @@ export class EmbeddingService {
         createdAt: new Date().toISOString(),
       };
     } catch (error) {
-      logger.error('Error generating embedding', { error });
-      throw new Error('Failed to generate embedding');
+      logger.error('Error generating embedding - detailed', {
+        error: error instanceof Error ? {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        } : error,
+        data: JSON.stringify(data),
+        apiKeyLength: process.env.OPENAI_API_KEY?.length || 0
+      });
+      throw new Error(`Failed to generate embedding: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -123,25 +142,53 @@ export class EmbeddingService {
     // Create a deterministic string representation
     const normalized: string[] = [];
 
-    // Add car information
-    if (data.carType) normalized.push(`Car Type: ${data.carType}`);
+    // Handle nested structure from ConversationData
+    // Check for car information (nested or flat)
+    if (data.car) {
+      if (data.car.type) normalized.push(`Car Type: ${data.car.type}`);
+      if (data.car.manufacturer) normalized.push(`Manufacturer: ${data.car.manufacturer}`);
+      if (data.car.model) normalized.push(`Model: ${data.car.model}`);
+      if (data.car.year) normalized.push(`Year: ${data.car.year}`);
+      if (data.car.license_plate) {
+        const plate = String(data.car.license_plate).toUpperCase().replace(/\s+/g, '');
+        normalized.push(`License Plate: ${plate}`);
+      }
+    }
+
+    // Also check flat structure (for backward compatibility)
+    if (data.car_type) normalized.push(`Car Type: ${data.car_type}`);
     if (data.manufacturer) normalized.push(`Manufacturer: ${data.manufacturer}`);
-    if (data.year) normalized.push(`Year: ${data.year}`);
-    if (data.licensePlate) {
-      // Normalize license plate (uppercase, no spaces)
-      const plate = String(data.licensePlate).toUpperCase().replace(/\s+/g, '');
+    if (data.model) normalized.push(`Model: ${data.model}`);
+    if (data.year_of_construction) normalized.push(`Year: ${data.year_of_construction}`);
+    if (data.license_plate) {
+      const plate = String(data.license_plate).toUpperCase().replace(/\s+/g, '');
       normalized.push(`License Plate: ${plate}`);
     }
 
-    // Add customer information
-    if (data.customerName) {
-      // Normalize name (lowercase, trimmed)
-      const name = String(data.customerName).toLowerCase().trim();
+    // Handle customer information (nested or flat)
+    if (data.customer) {
+      if (data.customer.name) {
+        const name = String(data.customer.name).toLowerCase().trim();
+        normalized.push(`Customer: ${name}`);
+      }
+      if (data.customer.birthdate) normalized.push(`Birthdate: ${data.customer.birthdate}`);
+    }
+
+    // Also check flat structure
+    if (data.customer_name) {
+      const name = String(data.customer_name).toLowerCase().trim();
       normalized.push(`Customer: ${name}`);
     }
     if (data.birthdate) normalized.push(`Birthdate: ${data.birthdate}`);
 
-    return normalized.join(', ');
+    // Log what we're normalizing for debugging
+    logger.debug('Normalized data for embedding', {
+      originalKeys: Object.keys(data),
+      normalizedString: normalized.join(', '),
+      itemCount: normalized.length
+    });
+
+    return normalized.join(', ') || 'No data available';
   }
 
   /**
@@ -155,20 +202,26 @@ export class EmbeddingService {
     try {
       const matchedFields: string[] = [];
 
-      // Check which fields match
-      if (dataA.carType === dataB.carType) matchedFields.push('car type');
-      if (dataA.manufacturer === dataB.manufacturer) matchedFields.push('manufacturer');
-      if (dataA.year === dataB.year) matchedFields.push('year');
+      // Check car fields (handle nested structure)
+      const carA = dataA.car || dataA;
+      const carB = dataB.car || dataB;
 
-      const plateA = String(dataA.licensePlate || '').toUpperCase().replace(/\s+/g, '');
-      const plateB = String(dataB.licensePlate || '').toUpperCase().replace(/\s+/g, '');
+      if ((carA.type || dataA.car_type) === (carB.type || dataB.car_type)) {
+        matchedFields.push('car type');
+      }
+      if (carA.manufacturer === carB.manufacturer) matchedFields.push('manufacturer');
+      if (carA.model === carB.model) matchedFields.push('model');
+      if ((carA.year || dataA.year_of_construction) === (carB.year || dataB.year_of_construction)) {
+        matchedFields.push('year');
+      }
+
+      const plateA = String(carA.license_plate || dataA.license_plate || '').toUpperCase().replace(/\s+/g, '');
+      const plateB = String(carB.license_plate || dataB.license_plate || '').toUpperCase().replace(/\s+/g, '');
       if (plateA && plateA === plateB) matchedFields.push('license plate');
 
-      const nameA = String(dataA.customerName || '').toLowerCase().trim();
-      const nameB = String(dataB.customerName || '').toLowerCase().trim();
-      if (nameA && nameA === nameB) matchedFields.push('customer name');
-
-      if (dataA.birthdate === dataB.birthdate) matchedFields.push('birthdate');
+      // Check customer fields (handle nested structure)
+      // Note: We do NOT include PII (name, birthdate) in the explanation to comply with privacy requirements
+      // These fields are still checked for similarity but not exposed in the message
 
       const similarityPercentage = Math.round(similarity * 100);
 
