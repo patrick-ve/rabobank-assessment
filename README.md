@@ -13,19 +13,29 @@ This project meets all assignment requirements:
 ✅ **E2E Testing** - Comprehensive test suite executed during build
 ✅ **Documentation** - Markdown-based documentation for build and run instructions
 
-## Features
+## Key Requirements Implementation
 
+### Core Functionality
+- ✅ **REST API Backend** - Complete set of REST endpoints for chatbot interactions
+- ✅ **AI Chat Sessions** - Maintains conversation state until completion
+- ✅ **Duplicate Detection** - AI-based detection without exposing PII (names, birthdates)
+- ✅ **User Confirmation** - Requests confirmation when duplicates are detected
+- ✅ **Prompt Configuration** - Reads prompts from `config/prompt.txt` at startup
+- ✅ **Historical Data Preservation** - Maintains data integrity across prompt changes
+
+### Technical Features
 - **AI-Powered Conversations**: Uses Vercel AI SDK with GPT-5 for natural language interactions
 - **Structured Data Extraction**: Zod schema validation with `generateObject` for guaranteed type-safe extraction
-- **AI-Based Duplicate Detection**: Semantic similarity using OpenAI embeddings instead of simple hash comparison
-  - 85% similarity threshold for intelligent duplicate detection
+- **Privacy-Preserving Duplicate Detection**:
+  - Semantic similarity using OpenAI embeddings (no PII exposure)
+  - 85% similarity threshold for intelligent matching
   - Cosine similarity calculation between embedding vectors
   - Fallback to exact license plate matching for safety
-  - Human-readable explanations of why duplicates were detected
+  - Human-readable explanations without revealing personal data
 - **Dynamic Prompt System**: Loads prompts from configuration files, allowing flexible conversation flows
 - **Flexible Schema**: MongoDB's document model supports changing prompts without schema migrations
 - **REST API**: Clean H3-based API for easy integration
-- **Docker Support**: Full containerization with Docker Compose
+- **Docker Support**: Full containerization with executable Docker image
 
 ## Technology Stack
 
@@ -354,9 +364,13 @@ The system uses AI-based semantic similarity detection:
 
 ### Build Docker Image
 
+The Docker image is automatically built by the `build.sh` script. For manual building:
+
 ```bash
 docker build -t rabobank-ai-chatbot .
 ```
+
+**Note**: The Dockerfile is in the project root and creates a multi-stage, production-ready executable image.
 
 ### Run with Docker Compose
 
