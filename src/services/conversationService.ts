@@ -33,7 +33,7 @@ export class ConversationService {
     // Generate initial greeting from AI
     try {
       const { text } = await generateText({
-        model: this.openai('gpt-5'),
+        model: this.openai('gpt-5-nano'),
         messages: [
           {
             role: 'system',
@@ -100,7 +100,7 @@ export class ConversationService {
       ];
 
       const { text } = await generateText({
-        model: this.openai('gpt-5'),
+        model: this.openai('gpt-5-nano'),
         messages: aiMessages,
       });
 
@@ -148,7 +148,7 @@ export class ConversationService {
 
       // Use generateObject with Zod schema for structured extraction
       const { object: extractedData } = await generateObject({
-        model: this.openai('gpt-5'),
+        model: this.openai('gpt-5-nano'),
         schema: RegistrationDataSchema,
         prompt: extractionPrompt,
       });
