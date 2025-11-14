@@ -246,16 +246,30 @@ npm run dev
 
 ### Run Tests
 
+**Note:** Tests require OpenAI API access with GPT-5 and text-embedding-3-small models. Make sure your `.env` file contains a valid `OPENAI_API_KEY`. Tests may take 3-5 minutes as they make multiple real API calls to OpenAI for conversation generation, data extraction, and embedding generation.
+
 ```bash
 # Make sure MongoDB is running
-docker-compose up mongodb -d
+docker compose up mongodb -d
 
-# Run tests
+# Run tests (requires OpenAI API key in .env, takes 3-5 minutes)
 npm test
 
 # Run with coverage
 npm run test -- --coverage
+
+# Run specific test
+npm test -- --testNamePattern="should generate embeddings"
 ```
+
+**Test Coverage:**
+- ✅ Full conversation flow
+- ✅ Session management
+- ✅ Data extraction and storage
+- ✅ **Embedding generation** (1536-dim vectors)
+- ✅ **AI-based duplicate detection** (89% similarity threshold)
+- ✅ Negative duplicate detection (different registrations)
+- ✅ License plate fallback matching
 
 ### Lint and Format
 
@@ -417,6 +431,350 @@ export MONGODB_URI=mongodb://user:pass@host:27017/chatbot_db?authSource=admin
 export OPENAI_API_KEY=sk-...
 export PORT=3000
 ```
+
+## Architecture
+
+<details>
+<summary><h3>📐 System Overview (Click to expand)</h3></summary>
+
+The Rabobank AI Chatbot is a backend application that provides REST APIs for conducting AI-powered conversations to collect car insurance registration information.
+
+### High-Level Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        C[Client<br/>Postman/Frontend]
+    end
+
+    subgraph "Application Layer"
+        H3[H3 Web Server]
+        API[API Routes]
+        SRV[Services]
+        REPO[Repositories]
+    end
+
+    subgraph "Data Layer"
+        MONGO[(MongoDB<br/>Database)]
+    end
+
+    subgraph "External Services"
+        OPENAI[OpenAI API<br/>GPT-5-nano & Embeddings]
+    end
+
+    C -->|HTTP/REST| H3
+    H3 --> API
+    API --> SRV
+    SRV --> REPO
+    REPO --> MONGO
+    SRV -->|AI Processing| OPENAI
+
+    style C fill:#e1f5f2
+    style MONGO fill:#ffe6e6
+    style OPENAI fill:#fff4e6
+```
+
+</details>
+
+### 🔧 Core Components
+
+<table>
+<tr>
+<th>Component</th>
+<th>Responsibility</th>
+<th>Key Technologies</th>
+</tr>
+<tr>
+<td><strong>API Layer</strong></td>
+<td>HTTP request handling, routing, validation</td>
+<td>H3 Framework, TypeScript</td>
+</tr>
+<tr>
+<td><strong>Service Layer</strong></td>
+<td>Business logic, AI integration, data processing</td>
+<td>Vercel AI SDK, OpenAI, Zod</td>
+</tr>
+<tr>
+<td><strong>Repository Layer</strong></td>
+<td>Data persistence, queries, transactions</td>
+<td>MongoDB Driver, BSON</td>
+</tr>
+<tr>
+<td><strong>External Services</strong></td>
+<td>AI conversations, embeddings, data extraction</td>
+<td>OpenAI GPT-5-nano, text-embedding-3-small</td>
+</tr>
+</table>
+
+### 🔄 Data Flow
+
+<details>
+<summary><h4>Conversation Flow Sequence</h4></summary>
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant API as API Layer
+    participant CS as ConversationService
+    participant AI as OpenAI
+    participant DB as MongoDB
+
+    C->>API: POST /api/chat/start
+    API->>CS: startConversation()
+    CS->>AI: Generate greeting
+    CS->>DB: Store session
+    API->>C: Return sessionId + greeting
+
+    loop Conversation
+        C->>API: POST /api/chat/message
+        API->>DB: Retrieve session
+        API->>CS: sendMessage()
+        CS->>AI: Process with context
+        CS->>DB: Update session
+        API->>C: Return AI response
+    end
+
+    C->>API: POST /api/chat/complete
+    API->>CS: extractData()
+    CS->>AI: Extract structured data
+    CS->>CS: Generate embeddings
+    CS->>DB: Check duplicates
+    CS->>DB: Store registration
+    API->>C: Return success
+```
+
+</details>
+
+<details>
+<summary><h4>Duplicate Detection Flow</h4></summary>
+
+```mermaid
+flowchart LR
+    A[New Registration] --> B[Generate Embedding]
+    B --> C{Embedding Success?}
+    C -->|Yes| D[Compare Vectors]
+    C -->|No| E[License Plate Check]
+    D --> F{Similarity > 85%?}
+    F -->|Yes| G[Duplicate Found]
+    F -->|No| E
+    E --> H{Exact Match?}
+    H -->|Yes| G
+    H -->|No| I[No Duplicate]
+    G --> J[Request Confirmation]
+    I --> K[Create Registration]
+```
+
+</details>
+
+### 📊 Service Details
+
+<details>
+<summary><h4>ConversationService</h4></summary>
+
+| Method | Purpose | Key Features |
+|--------|---------|--------------|
+| `initialize()` | Load prompt configuration | One-time startup, version tracking |
+| `startConversation()` | Create new session | AI greeting, session storage |
+| `sendMessage()` | Process user messages | Context management, AI responses |
+| `extractConversationData()` | Extract structured data | Zod validation, type safety |
+
+</details>
+
+<details>
+<summary><h4>DuplicateDetectionService</h4></summary>
+
+| Method | Purpose | Key Features |
+|--------|---------|--------------|
+| `detectDuplicate()` | Find similar registrations | AI embeddings, 85% threshold |
+| `checkLicensePlateOnly()` | Fallback detection | Exact matching safety net |
+| `generateConfirmationMessage()` | User confirmation | Privacy-preserving messages |
+
+</details>
+
+<details>
+<summary><h4>EmbeddingService</h4></summary>
+
+| Method | Purpose | Key Features |
+|--------|---------|--------------|
+| `generateEmbedding()` | Create vector representations | 1536-dim vectors, error handling |
+| `calculateSimilarity()` | Compare embeddings | Cosine similarity algorithm |
+| `findSimilarEmbeddings()` | Batch similarity search | Configurable threshold |
+| `normalizeDataForEmbedding()` | Prepare data for embedding | Consistent formatting |
+
+</details>
+
+### 🗄️ Database Schema
+
+<details>
+<summary><h4>MongoDB Collections</h4></summary>
+
+#### Sessions Collection
+```javascript
+{
+  _id: ObjectId,
+  sessionId: string,
+  promptVersion: string,
+  messages: [{
+    role: "user" | "assistant" | "system",
+    content: string,
+    timestamp: Date
+  }],
+  state: "active" | "completed" | "cancelled",
+  createdAt: Date,
+  updatedAt: Date,
+  completedAt: Date
+}
+```
+
+#### Registrations Collection
+```javascript
+{
+  _id: ObjectId,
+  sessionId: string,
+  promptVersion: string,
+  conversationData: {
+    car_type: string,
+    manufacturer: string,
+    model: string,
+    year_of_construction: number,
+    license_plate: string,
+    customer_name: string,
+    birthdate: string
+  },
+  metadata: object,
+  embedding: {
+    vector: number[],  // 1536 dimensions
+    model: string,
+    createdAt: Date
+  },
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+</details>
+
+### 🧪 Testing Strategy
+
+<details>
+<summary><h4>Test Infrastructure & Coverage</h4></summary>
+
+#### Test Modes
+
+| Mode | Command | Description | Execution Time |
+|------|---------|-------------|----------------|
+| **Full Suite** | `npm test` | All tests, verbose output | 3-5 minutes |
+| **Fast Mode** | `npm run test:fast` | All tests, 5 concurrent | 2-3 minutes |
+| **Limited Mode** | `npm run test:limited` | 5 core tests for CI/CD | 60 seconds |
+
+#### Test Coverage Matrix
+
+| Test Scenario | Type | Coverage |
+|--------------|------|----------|
+| Complete conversation flow | E2E | ✅ Full registration process |
+| Session management | Integration | ✅ CRUD operations |
+| Data extraction | E2E | ✅ Zod validation |
+| Embedding generation | Integration | ✅ Vector creation |
+| Duplicate detection | E2E | ✅ 85% threshold matching |
+| Privacy preservation | E2E | ✅ No PII exposure |
+| User confirmation | E2E | ✅ Accept/reject flows |
+| License plate fallback | E2E | ✅ Exact matching |
+
+#### Test Configuration
+- **Isolation**: Unique test prefixes prevent conflicts
+- **Database**: Dedicated `chatbot_test_db`
+- **Concurrency**: Configurable via `TEST_MAX_CONCURRENCY`
+- **Timeout**: 120s per test, 30s for hooks
+
+</details>
+
+### 🚀 Recent Updates (November 2025)
+
+<details>
+<summary><h4>Testing Infrastructure Enhancements</h4></summary>
+
+- **Performance Optimizations**:
+  - Test caching helper for API response reuse
+  - Isolated test environments with unique prefixes
+  - Configurable test concurrency (default: sequential)
+  - Limited test suite for faster CI/CD builds
+
+- **New Test Scripts**:
+  - `test:fast` - All tests with 5 concurrent execution
+  - `test:limited` - 5 core tests for CI pipelines
+  - Dedicated test database to avoid conflicts
+
+</details>
+
+<details>
+<summary><h4>Service Layer Improvements</h4></summary>
+
+- **EmbeddingService**:
+  - Graceful error handling with detailed logging
+  - Support for nested data structures
+  - Configurable model via `TEST_EMBEDDING_MODEL`
+  - Fallback mechanisms for embedding failures
+
+- **DuplicateDetectionService**:
+  - Configurable similarity threshold (default: 85%)
+  - License plate exact matching as fallback
+  - Privacy-preserving duplicate detection
+  - No PII exposure in detection results
+
+- **Model Configuration**:
+  - Switched to `gpt-5-nano` for improved performance
+  - Environment-based model selection
+  - Consistent model usage across services
+
+</details>
+
+### 🔒 Security & Privacy
+
+<details>
+<summary><h4>Security Measures</h4></summary>
+
+| Aspect | Implementation | Status |
+|--------|---------------|--------|
+| **PII Protection** | No PII in duplicate detection responses | ✅ Implemented |
+| **Input Validation** | Zod schemas, TypeScript types | ✅ Implemented |
+| **SQL Injection** | Parameterized queries | N/A (MongoDB) |
+| **Environment Variables** | Secure credential storage | ✅ Implemented |
+| **API Authentication** | JWT/API keys | ⏳ Future |
+| **Rate Limiting** | Request throttling | ⏳ Future |
+| **HTTPS/TLS** | Encrypted communication | ⏳ Future |
+
+</details>
+
+### 📈 Scalability Considerations
+
+<details>
+<summary><h4>Current & Future Optimizations</h4></summary>
+
+**Current Design**:
+- ✅ Connection pooling for MongoDB
+- ✅ Stateless API design
+- ✅ Docker containerization
+- ✅ Horizontal scaling ready
+
+**Future Enhancements**:
+- ⏳ Redis caching layer
+- ⏳ Message queue for async processing
+- ⏳ Read replicas for database
+- ⏳ CDN for static content
+- ⏳ Kubernetes orchestration
+- ⏳ Load balancing
+
+</details>
+
+### 🎯 Design Patterns
+
+| Pattern | Usage | Benefits |
+|---------|-------|----------|
+| **Repository Pattern** | Data access abstraction | Clean separation, testability |
+| **Service Layer** | Business logic isolation | Maintainability, reusability |
+| **Dependency Injection** | Service composition | Flexibility, testing |
+| **Factory Pattern** | Connection management | Resource optimization |
+| **Strategy Pattern** | Duplicate detection algorithms | Extensibility |
 
 ## Troubleshooting
 
