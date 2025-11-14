@@ -287,14 +287,16 @@ npm run dev
 
 ### Run Tests
 
-**Note:** Tests require OpenAI API access with GPT-5 and text-embedding-3-small models. Make sure your `.env` file contains a valid `OPENAI_API_KEY`. Tests may take 3-5 minutes as they make multiple real API calls to OpenAI for conversation generation, data extraction, and embedding generation.
+**Note:** Tests require OpenAI API access with GPT-5 and text-embedding-3-small models. Make sure your `.env` file contains a valid `OPENAI_API_KEY`.
 
 ```bash
 # Make sure MongoDB is running
 docker compose up mongodb -d
 
-# Run tests (requires OpenAI API key in .env, takes 3-5 minutes)
-npm test
+# Run tests (various modes available)
+npm test                    # Full test suite (3-5 minutes)
+npm run test:concurrent     # Fast mode - 5 tests in parallel (2-3 minutes)
+npm run test:limited        # Quick CI mode - 5 core tests (60 seconds)
 
 # Run with coverage
 npm run test -- --coverage
@@ -302,6 +304,8 @@ npm run test -- --coverage
 # Run specific test
 npm test -- --testNamePattern="should generate embeddings"
 ```
+
+**Build Script Integration**: The `build.sh` script automatically uses `test:concurrent` for optimal speed during the build process.
 
 **Test Coverage:**
 
