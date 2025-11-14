@@ -10,7 +10,7 @@
     "start": "node dist/index.js",
     "test": "vitest run --reporter=verbose",
     "test:watch": "vitest",
-    "test:fast": "./scripts/test-e2e-fast.sh",
+    "test:concurrent": "./scripts/test-e2e-fast.sh",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",

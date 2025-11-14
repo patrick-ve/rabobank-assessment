@@ -29,11 +29,12 @@ echo -e "\n${YELLOW}[4/6] Building TypeScript...${NC}"
 npm run build
 
 # Step 5: Run tests (skip if no database available)
-echo -e "\n${YELLOW}[5/6] Running tests...${NC}"
+echo -e "\n${YELLOW}[5/6] Running tests (fast mode - 5 tests in parallel)...${NC}"
 if [ -z "$SKIP_TESTS" ]; then
-    echo "Note: Tests require a running PostgreSQL database."
+    echo "Note: Tests require a running MongoDB database."
     echo "Set SKIP_TESTS=1 to skip tests during build."
-    if npm run test 2>/dev/null; then
+    echo "Running all tests with 5 concurrent for faster execution..."
+    if npm run test:concurrent 2>/dev/null; then
         echo -e "${GREEN}Tests passed!${NC}"
     else
         echo -e "${YELLOW}Tests skipped or failed (this is expected without database)${NC}"
