@@ -263,6 +263,7 @@ npm test -- --testNamePattern="should generate embeddings"
 ```
 
 **Test Coverage:**
+
 - ✅ Full conversation flow
 - ✅ Session management
 - ✅ Data extraction and storage
@@ -571,35 +572,35 @@ flowchart LR
 <details>
 <summary><h4>ConversationService</h4></summary>
 
-| Method | Purpose | Key Features |
-|--------|---------|--------------|
-| `initialize()` | Load prompt configuration | One-time startup, version tracking |
-| `startConversation()` | Create new session | AI greeting, session storage |
-| `sendMessage()` | Process user messages | Context management, AI responses |
-| `extractConversationData()` | Extract structured data | Zod validation, type safety |
+| Method                      | Purpose                   | Key Features                       |
+| --------------------------- | ------------------------- | ---------------------------------- |
+| `initialize()`              | Load prompt configuration | One-time startup, version tracking |
+| `startConversation()`       | Create new session        | AI greeting, session storage       |
+| `sendMessage()`             | Process user messages     | Context management, AI responses   |
+| `extractConversationData()` | Extract structured data   | Zod validation, type safety        |
 
 </details>
 
 <details>
 <summary><h4>DuplicateDetectionService</h4></summary>
 
-| Method | Purpose | Key Features |
-|--------|---------|--------------|
-| `detectDuplicate()` | Find similar registrations | AI embeddings, 85% threshold |
-| `checkLicensePlateOnly()` | Fallback detection | Exact matching safety net |
-| `generateConfirmationMessage()` | User confirmation | Privacy-preserving messages |
+| Method                          | Purpose                    | Key Features                 |
+| ------------------------------- | -------------------------- | ---------------------------- |
+| `detectDuplicate()`             | Find similar registrations | AI embeddings, 85% threshold |
+| `checkLicensePlateOnly()`       | Fallback detection         | Exact matching safety net    |
+| `generateConfirmationMessage()` | User confirmation          | Privacy-preserving messages  |
 
 </details>
 
 <details>
 <summary><h4>EmbeddingService</h4></summary>
 
-| Method | Purpose | Key Features |
-|--------|---------|--------------|
-| `generateEmbedding()` | Create vector representations | 1536-dim vectors, error handling |
-| `calculateSimilarity()` | Compare embeddings | Cosine similarity algorithm |
-| `findSimilarEmbeddings()` | Batch similarity search | Configurable threshold |
-| `normalizeDataForEmbedding()` | Prepare data for embedding | Consistent formatting |
+| Method                        | Purpose                       | Key Features                     |
+| ----------------------------- | ----------------------------- | -------------------------------- |
+| `generateEmbedding()`         | Create vector representations | 1536-dim vectors, error handling |
+| `calculateSimilarity()`       | Compare embeddings            | Cosine similarity algorithm      |
+| `findSimilarEmbeddings()`     | Batch similarity search       | Configurable threshold           |
+| `normalizeDataForEmbedding()` | Prepare data for embedding    | Consistent formatting            |
 
 </details>
 
@@ -609,6 +610,7 @@ flowchart LR
 <summary><h4>MongoDB Collections</h4></summary>
 
 #### Sessions Collection
+
 ```javascript
 {
   _id: ObjectId,
@@ -627,6 +629,7 @@ flowchart LR
 ```
 
 #### Registrations Collection
+
 ```javascript
 {
   _id: ObjectId,
@@ -661,26 +664,27 @@ flowchart LR
 
 #### Test Modes
 
-| Mode | Command | Description | Execution Time |
-|------|---------|-------------|----------------|
-| **Full Suite** | `npm test` | All tests, verbose output | 3-5 minutes |
-| **Fast Mode** | `npm run test:fast` | All tests, 5 concurrent | 2-3 minutes |
-| **Limited Mode** | `npm run test:limited` | 5 core tests for CI/CD | 60 seconds |
+| Mode             | Command                | Description               | Execution Time |
+| ---------------- | ---------------------- | ------------------------- | -------------- |
+| **Full Suite**   | `npm test`             | All tests, verbose output | 3-5 minutes    |
+| **Fast Mode**    | `npm run test:fast`    | All tests, 5 concurrent   | 2-3 minutes    |
+| **Limited Mode** | `npm run test:limited` | 5 core tests for CI/CD    | 60 seconds     |
 
 #### Test Coverage Matrix
 
-| Test Scenario | Type | Coverage |
-|--------------|------|----------|
-| Complete conversation flow | E2E | ✅ Full registration process |
-| Session management | Integration | ✅ CRUD operations |
-| Data extraction | E2E | ✅ Zod validation |
-| Embedding generation | Integration | ✅ Vector creation |
-| Duplicate detection | E2E | ✅ 85% threshold matching |
-| Privacy preservation | E2E | ✅ No PII exposure |
-| User confirmation | E2E | ✅ Accept/reject flows |
-| License plate fallback | E2E | ✅ Exact matching |
+| Test Scenario              | Type        | Coverage                     |
+| -------------------------- | ----------- | ---------------------------- |
+| Complete conversation flow | E2E         | ✅ Full registration process |
+| Session management         | Integration | ✅ CRUD operations           |
+| Data extraction            | E2E         | ✅ Zod validation            |
+| Embedding generation       | Integration | ✅ Vector creation           |
+| Duplicate detection        | E2E         | ✅ 85% threshold matching    |
+| Privacy preservation       | E2E         | ✅ No PII exposure           |
+| User confirmation          | E2E         | ✅ Accept/reject flows       |
+| License plate fallback     | E2E         | ✅ Exact matching            |
 
 #### Test Configuration
+
 - **Isolation**: Unique test prefixes prevent conflicts
 - **Database**: Dedicated `chatbot_test_db`
 - **Concurrency**: Configurable via `TEST_MAX_CONCURRENCY`
@@ -733,48 +737,27 @@ flowchart LR
 <details>
 <summary><h4>Security Measures</h4></summary>
 
-| Aspect | Implementation | Status |
-|--------|---------------|--------|
-| **PII Protection** | No PII in duplicate detection responses | ✅ Implemented |
-| **Input Validation** | Zod schemas, TypeScript types | ✅ Implemented |
-| **SQL Injection** | Parameterized queries | N/A (MongoDB) |
-| **Environment Variables** | Secure credential storage | ✅ Implemented |
-| **API Authentication** | JWT/API keys | ⏳ Future |
-| **Rate Limiting** | Request throttling | ⏳ Future |
-| **HTTPS/TLS** | Encrypted communication | ⏳ Future |
-
-</details>
-
-### 📈 Scalability Considerations
-
-<details>
-<summary><h4>Current & Future Optimizations</h4></summary>
-
-**Current Design**:
-- ✅ Connection pooling for MongoDB
-- ✅ Stateless API design
-- ✅ Docker containerization
-- ✅ Horizontal scaling ready
-
-**Future Enhancements**:
-- ⏳ Redis caching layer
-- ⏳ Message queue for async processing
-- ⏳ Read replicas for database
-- ⏳ CDN for static content
-- ⏳ Kubernetes orchestration
-- ⏳ Load balancing
+| Aspect                    | Implementation                          | Status         |
+| ------------------------- | --------------------------------------- | -------------- |
+| **PII Protection**        | No PII in duplicate detection responses | ✅ Implemented |
+| **Input Validation**      | Zod schemas, TypeScript types           | ✅ Implemented |
+| **SQL Injection**         | Parameterized queries                   | N/A (MongoDB)  |
+| **Environment Variables** | Secure credential storage               | ✅ Implemented |
+| **API Authentication**    | JWT/API keys                            | ⏳ Future      |
+| **Rate Limiting**         | Request throttling                      | ⏳ Future      |
+| **HTTPS/TLS**             | Encrypted communication                 | ⏳ Future      |
 
 </details>
 
 ### 🎯 Design Patterns
 
-| Pattern | Usage | Benefits |
-|---------|-------|----------|
-| **Repository Pattern** | Data access abstraction | Clean separation, testability |
-| **Service Layer** | Business logic isolation | Maintainability, reusability |
-| **Dependency Injection** | Service composition | Flexibility, testing |
-| **Factory Pattern** | Connection management | Resource optimization |
-| **Strategy Pattern** | Duplicate detection algorithms | Extensibility |
+| Pattern                  | Usage                          | Benefits                      |
+| ------------------------ | ------------------------------ | ----------------------------- |
+| **Repository Pattern**   | Data access abstraction        | Clean separation, testability |
+| **Service Layer**        | Business logic isolation       | Maintainability, reusability  |
+| **Dependency Injection** | Service composition            | Flexibility, testing          |
+| **Factory Pattern**      | Connection management          | Resource optimization         |
+| **Strategy Pattern**     | Duplicate detection algorithms | Extensibility                 |
 
 ## Troubleshooting
 
